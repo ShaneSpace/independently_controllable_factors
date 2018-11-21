@@ -12,8 +12,8 @@ class SimpleGridworld(object):
         delta = action_mapping[a]
         new_position = self.position + np.array(delta)
         new_position = np.clip(new_position, 0, 11)
-        position = new_position
-        return self.get_observation(position)
+        self.position = new_position
+        return self.get_observation()
 
 
     def get_observation(self, position=None):
@@ -25,7 +25,13 @@ class SimpleGridworld(object):
         return canvas
 
     def get_observation_string(self, position=None):
+        out_string = ''
         obs = self.get_observation(position)
+        for y in range(12):
+            for x in range(12):
+                out_string += str(obs[y,x])
+            out_string += '\n'
+        return out_string
 
     def get_position(self):
         return np.copy(self.position)
@@ -35,6 +41,9 @@ class SimpleGridworld(object):
 
 if __name__ == '__main__':
     env = SimpleGridworld()
-    a = np.random.randint(0, 4)
-    print(env.step(a))
+    while True:
+        a = np.random.randint(0, 4)
+        env.step(a)
+        print(env.get_observation_string())
+
 
