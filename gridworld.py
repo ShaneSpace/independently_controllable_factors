@@ -16,11 +16,16 @@ class SimpleGridworld(object):
         return self.get_observation(position)
 
 
-    def get_observation(self, position):
+    def get_observation(self, position=None):
+        if position is None:
+            position = self.position
         canvas = np.zeros([12, 12, 1], np.float32)
         y, x = position[0], position[1]
         canvas[y:y+2, x:x+2, :] = 1
         return canvas
+
+    def get_observation_string(self, position=None):
+        obs = self.get_observation(position)
 
     def get_position(self):
         return np.copy(self.position)
@@ -28,4 +33,8 @@ class SimpleGridworld(object):
     def set_position(self, new_position):
         self.position = np.copy(new_position)
 
+if __name__ == '__main__':
+    env = SimpleGridworld()
+    a = np.random.randint(0, 4)
+    print(env.step(a))
 

@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+EPS = 10**-6
+
 class IndepFeatureLearner(object):
 
     def __init__(self):
@@ -30,7 +32,7 @@ class IndepFeatureLearner(object):
         self.f = fs = enc
         fsp_list = []
         for i in range(self.num_factors):
-            _, fsp = self.build_encoder_gridworld(self.inp_sp, 'encoder', reuse=True)
+            _, fsp = self.build_encoder_gridworld(self.inp_sp[:,:,:,:,i], 'encoder', reuse=True)
             fsp_list.append(tf.reshape(fsp, [-1, self.num_factors, 1]))
         fsp = tf.concat(fsp_list, axis=-1) # [bs, num_factors, num_factors]
         self.sel_encoder_loss = tf.reduce_mean(self.build_selectivity(fsp, fs), axis=0)
@@ -40,9 +42,9 @@ class IndepFeatureLearner(object):
         decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='decoder')
         policy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='pi')
 
-        self.train_recon = tf.train.AdamOptimizer().minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
-        self.train_encoder_sel = tf.train.AdamOptimizer().minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
-        self.train_pi_sel = tf.train.AdamOptimizer().minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars)
+        self.train_recon = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
+        self.train_encoder_sel = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
+        self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars)
 
         # TODO configure so we dont eat all the resources.
         self.sess = tf.Session()
@@ -57,23 +59,24 @@ class IndepFeatureLearner(object):
         [_, pi_loss] = self.sess.run([self.train_pi_sel, self.sel_pi_loss], feed_dict={self.inp_s: s,
                                                                                        self.inp_a: a,
                                                                                        self.inp_sp: sp})
+        #encoder_loss = 0
+        #pi_loss = 0
         return recon_loss, encoder_loss, pi_loss
 
 
     def get_f(self, s):
-        return self.sess.run([self.f], {self.inp_s: s})
+        return self.sess.run(self.f, {self.inp_s: s})
 
     def get_all_pi(self, s):
-        return self.sess.run([self.pi], {self.inp_s: s})
+        return self.sess.run(self.pi, {self.inp_s: s})
 
     def get_actions(self, s):
-        return np.argmax(self.sess.run([self.pi], {self.inp_s: s}), axis=1) # [bs, 
-
+        return np.argmax(self.sess.run(self.pi, {self.inp_s: s}), axis=1) # [bs, num_factors]
 
     def build_encoder_gridworld(self, inp, name, reuse=None):
         # images are 12 x 12 x 1?
         inp_shape = [x.value for x in inp.get_shape()]
-        assert inp_shape[1:] == [12, 12]
+        assert inp_shape[1:] == [12, 12, 1]
         with tf.variable_scope(name, reuse=reuse):
             c1 = tf.layers.conv2d(inp, 16, 3, 2, padding='SAME', activation=tf.nn.relu, name='c1') # [bs, 6, 6, 16]
             c2 = tf.layers.conv2d(c1, 16, 3, 2, padding='SAME', activation=tf.nn.relu, name='c2') # [bs, 3, 3, 16]
@@ -109,7 +112,7 @@ class IndepFeatureLearner(object):
         sel = tf.zeros([tf.shape(fs)[0]])
         for i in range(self.num_factors):
             numer = tf.abs(fsp[:, i, i] - fs[:, i])
-            denom = tf.reduce_sum(tf.abs(fsp[:, :, i] - fs), axis=1, keep_dims=True)
+            denom = tf.reduce_sum(tf.abs(fsp[:, :, i] - fs), axis=1) + EPS
             sel += numer / denom
         return sel
 
@@ -122,7 +125,7 @@ class IndepFeatureLearner(object):
         sel_log = tf.zeros([tf.shape(fs)[0]])
         for i in range(self.num_factors):
             numer = tf.abs(fsp[:, i, i] - fs[:, i])
-            denom = tf.reduce_sum(tf.abs(fsp[:, :, i] - fs), axis=1, keep_dims=True)
+            denom = tf.reduce_sum(tf.abs(fsp[:, :, i] - fs), axis=1) + EPS
             sel = numer / denom
             sel_log += tf.log(tf.reduce_sum(pi[:, :, i] * action[:, :, i], axis=1)) * sel
         return sel_log

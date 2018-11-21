@@ -17,17 +17,20 @@ def visualize_correlation(file_path : str, network : IndepFeatureLearner, env : 
         canvas = np.zeros([11,11], dtype=np.float32)
         for pos, f in zip(all_positions, all_f_i):
             canvas[pos[0], pos[1]] = f
+        canvas = (canvas + 1) / 2
+        canvas = (255 * canvas).astype(np.uint8)
         canvas = cv2.applyColorMap(canvas, cv2.COLORMAP_JET)
-        canvas = cv2.resize(canvas, (400, 400))
+        canvas = cv2.resize(canvas, (400, 400), interpolation=cv2.INTER_NEAREST)
         images.append(canvas)
 
     for i, image in enumerate(images):
-        cv2.imwrite(os.path.join(file_path, f'correlation{i}.png'), image)
+        cv2.imwrite(file_path + f'correlation{i}.png', image)
 
 def visualize_policies(file_path : str, network : IndepFeatureLearner, env : SimpleGridworld):
     all_positions, all_observations = get_all_states(env)
     all_pi = network.get_all_pi(all_observations)
-    canvas = np.transpose(np.mean(all_pi, axis=0), [1,0]) #[num_actions, num_factors]
+    canvas = (255*np.transpose(np.mean(all_pi, axis=0), [1,0])).astype(np.uint8) #[num_actions, num_factors]
     canvas = cv2.applyColorMap(canvas, cv2.COLORMAP_JET)
-    canvas = cv2.resize(canvas, (400, 400))
-    cv2.imwrite(os.path.join(file_path, f'policy_averages.png'), canvas)
+    canvas = cv2.resize(canvas, (400, 400), interpolation=cv2.INTER_NEAREST)
+    cv2.imwrite(file_path + f'policy_averages.png', canvas)
+
