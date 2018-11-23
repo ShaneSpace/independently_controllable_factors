@@ -48,9 +48,9 @@ class IndepFeatureLearner(object):
         print('decoder', decoder_vars)
         print('pi', policy_vars)
 
-        self.train_recon = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
+        self.train_recon = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
         #self.train_encoder_sel = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
-        self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars+encoder_vars)
+        self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars+encoder_vars)
 
         # TODO configure so we dont eat all the resources.
         self.sess = tf.Session()
