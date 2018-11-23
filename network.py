@@ -53,7 +53,9 @@ class IndepFeatureLearner(object):
         self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars+encoder_vars)
 
         # TODO configure so we dont eat all the resources.
-        self.sess = tf.Session()
+        config = tf.ConfigProto(allow_soft_placement=True)
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
         self.sess.run(tf.global_variables_initializer())
 
 
