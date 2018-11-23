@@ -5,16 +5,40 @@ import numpy as np
 import itertools
 import utils, replay_buffer
 import os
+from utils import build_directory_structure, LOG, add_implicit_name_arg
+import argparse
+
+parser = argparse.ArgumentParser()
+add_implicit_name_arg(parser)
+parser.add_argument('--run-dir', type=str, default='runs')
+parser.add_argument('--batch-size', type=int, default=32)
+parser.add_argument('--lmbda', type=float, default=1)
+parser.add_argument('--learning-rate', type=float, default=0.0001)
+args = parser.parse_args()
+
+
+build_directory_structure('.',
+    {args.run_dir : {
+        args.name : {
+            'autoencoder': {},
+            'correlation': {},
+            'policies': {}
+        }
+    }
+    })
+
+LOG.setup(os.path.join('.', args.run_dir, args.name))
+
 
 env = SimpleGridworld()
 dummy_env = SimpleGridworld()
-net = IndepFeatureLearner()
+net = IndepFeatureLearner(lmbda=args.lmbda, learning_rate=args.learning_rate)
 buffer = replay_buffer.ReplayBuffer(10000)
 
-visualization_freq = 1000
-batch_size = 64
+visualization_freq = 10000
+batch_size = args.batch_size
 
-def run_training_step(buffer : replay_buffer.ReplayBuffer, net : IndepFeatureLearner, env : SimpleGridworld):
+def run_training_step(buffer : replay_buffer.ReplayBuffer, net : IndepFeatureLearner):
     positions, _, _, _, _ = buffer.sample(batch_size)
     s_list = []
     sp_list = []
@@ -41,7 +65,9 @@ for i in itertools.count():
     if buffer.length() < 1000:
         continue
 
-    recon_loss, pi_loss = run_training_step(buffer, net, env)
+    recon_loss, pi_loss = run_training_step(buffer, net)
+    LOG.add_line('recon_loss', recon_loss)
+    LOG.add_line('pi_loss', pi_loss)
     print(f'{i}: recon_loss: {recon_loss} pi_loss: {pi_loss}')
     if i % visualization_freq == 0:
         visualize_policies(f'./vis/policies/{i}_', net, env)

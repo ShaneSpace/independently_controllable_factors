@@ -6,10 +6,10 @@ EPS = 10**-8
 
 class IndepFeatureLearner(object):
 
-    def __init__(self):
+    def __init__(self, lmbda=1.0, learning_rate=0.0001):
         self.num_actions = 4
         self.num_factors = 4
-        self.lbda = 100.0
+        self.lbda = 10.0
         # for whatever reason we sample 1 state at a time.
         self.inp_s = tf.placeholder(tf.float32, shape=[None, 12, 12, 1], name='inp_s')
         #self.inp_a = tf.placeholder(tf.uint8, shape=[None, self.num_factors], name='inp_a')
