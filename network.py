@@ -2,61 +2,63 @@ import tensorflow as tf
 import numpy as np
 from gridworld import SimpleGridworld
 
-EPS = 10**-8
+EPS = 10**-6
 
 class IndepFeatureLearner(object):
 
-    def __init__(self, lmbda=1.0, learning_rate=0.0001):
+    def __init__(self, lmbda=1.0, learning_rate=0.0001, gpu_num=0):
         self.num_actions = 4
         self.num_factors = 4
-        self.lbda = 10.0
+        self.lbda = lmbda
         # for whatever reason we sample 1 state at a time.
-        self.inp_s = tf.placeholder(tf.float32, shape=[None, 12, 12, 1], name='inp_s')
-        #self.inp_a = tf.placeholder(tf.uint8, shape=[None, self.num_factors], name='inp_a')
-        #a_onehot = []
-        #for i in range(self.num_factors):
-        #    a_onehot.append(tf.reshape(tf.one_hot(self.inp_a[:, i], self.num_actions), [-1, self.num_actions, 1]))
-        #a_onehot = tf.concat(a_onehot, axis=-1) # [bs, num_actions, num_factors]
-        self.inp_sp = tf.placeholder(tf.float32, shape=[None, 12, 12, 1, self.num_actions], name='inp_sp')
+        device_string = f'/gpu:{gpu_num}' if gpu_num >= 0 else f'/cpu:0'
+        with tf.device(device_string):
+            self.inp_s = tf.placeholder(tf.float32, shape=[None, 12, 12, 1], name='inp_s')
+            #self.inp_a = tf.placeholder(tf.uint8, shape=[None, self.num_factors], name='inp_a')
+            #a_onehot = []
+            #for i in range(self.num_factors):
+            #    a_onehot.append(tf.reshape(tf.one_hot(self.inp_a[:, i], self.num_actions), [-1, self.num_actions, 1]))
+            #a_onehot = tf.concat(a_onehot, axis=-1) # [bs, num_actions, num_factors]
+            self.inp_sp = tf.placeholder(tf.float32, shape=[None, 12, 12, 1, self.num_actions], name='inp_sp')
 
-        # building autoencoder and decoder loss
-        fc1, enc = self.build_encoder_gridworld(self.inp_s, 'encoder')
-        recon = self.build_decoder_gridworld(enc, 'decoder')
-        self.recon = recon
-        decoder_loss = 0.5*tf.reduce_sum(tf.square(recon - self.inp_s), axis=[1,2,3])
-        decoder_loss = tf.reduce_mean(decoder_loss, axis=0)
-        self.decoder_loss = decoder_loss
+            # building autoencoder and decoder loss
+            fc1, enc = self.build_encoder_gridworld(self.inp_s, 'encoder')
+            recon = self.build_decoder_gridworld(enc, 'decoder')
+            self.recon = recon
+            decoder_loss = 0.5*tf.reduce_sum(tf.square(recon - self.inp_s), axis=[1,2,3])
+            decoder_loss = tf.reduce_mean(decoder_loss, axis=0)
+            self.decoder_loss = decoder_loss
 
-        # build policy
-        self.pi = pi = self.build_pi_network(fc1, 'pi') # [bs, num_actions, num_factors]
+            # build policy
+            self.pi = pi = self.build_pi_network(fc1, 'pi') # [bs, num_actions, num_factors]
 
-        # building selectivity terms and loss
-        self.f = fs = enc
-        fsp_list = []
-        for i in range(self.num_actions):
-            _, fsp = self.build_encoder_gridworld(self.inp_sp[:,:,:,:,i], 'encoder', reuse=True)
-            fsp_list.append(tf.reshape(fsp, [-1, self.num_factors, 1]))
-        fsp = tf.concat(fsp_list, axis=-1) # [bs, num_factors, num_actions]
-        self.sel_encoder_loss = tf.reduce_mean(self.build_selectivity(fsp, fs, pi), axis=0)
-        self.sel_pi_loss = tf.reduce_mean(self.build_selectivity_log(fsp, fs, pi), axis=0)
+            # building selectivity terms and loss
+            self.f = fs = enc
+            fsp_list = []
+            for i in range(self.num_actions):
+                _, fsp = self.build_encoder_gridworld(self.inp_sp[:,:,:,:,i], 'encoder', reuse=True)
+                fsp_list.append(tf.reshape(fsp, [-1, self.num_factors, 1]))
+            fsp = tf.concat(fsp_list, axis=-1) # [bs, num_factors, num_actions]
+            self.sel_encoder_loss = tf.reduce_mean(self.build_selectivity(fsp, fs, pi), axis=0)
+            self.sel_pi_loss = tf.reduce_mean(self.build_selectivity_log(fsp, fs, pi), axis=0)
 
-        encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='encoder')
-        decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='decoder')
-        policy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='pi')
+            encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='encoder')
+            decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='decoder')
+            policy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='pi')
 
-        print('encoder', encoder_vars)
-        print('decoder', decoder_vars)
-        print('pi', policy_vars)
+            print('encoder', encoder_vars)
+            print('decoder', decoder_vars)
+            print('pi', policy_vars)
 
-        self.train_recon = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
-        #self.train_encoder_sel = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
-        self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars+encoder_vars)
+            self.train_recon = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
+            #self.train_encoder_sel = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
+            self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars+encoder_vars)
 
-        # TODO configure so we dont eat all the resources.
-        config = tf.ConfigProto(allow_soft_placement=True)
-        config.gpu_options.allow_growth = True
-        self.sess = tf.Session(config=config)
-        self.sess.run(tf.global_variables_initializer())
+            # TODO configure so we dont eat all the resources.
+            config = tf.ConfigProto(allow_soft_placement=True)
+            config.gpu_options.allow_growth = True
+            self.sess = tf.Session(config=config)
+            self.sess.run(tf.global_variables_initializer())
 
 
     def train_step(self, s, sp):

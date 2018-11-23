@@ -14,6 +14,7 @@ parser.add_argument('--run-dir', type=str, default='runs')
 parser.add_argument('--batch-size', type=int, default=32)
 parser.add_argument('--lmbda', type=float, default=1)
 parser.add_argument('--learning-rate', type=float, default=0.0001)
+parser.add_argument('--gpu-num', type=int, default=0)
 args = parser.parse_args()
 
 
@@ -32,7 +33,7 @@ LOG.setup(os.path.join('.', args.run_dir, args.name))
 
 env = SimpleGridworld()
 dummy_env = SimpleGridworld()
-net = IndepFeatureLearner(lmbda=args.lmbda, learning_rate=args.learning_rate)
+net = IndepFeatureLearner(lmbda=args.lmbda, learning_rate=args.learning_rate, gpu_num=args.gpu_num)
 buffer = replay_buffer.ReplayBuffer(10000)
 
 visualization_freq = 10000
