@@ -48,9 +48,9 @@ class IndepFeatureLearner(object):
         print('decoder', decoder_vars)
         print('pi', policy_vars)
 
-        self.train_recon = tf.train.AdamOptimizer(learning_rate=0.00001).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
-        self.train_encoder_sel = tf.train.AdamOptimizer(learning_rate=0.00001).minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
-        self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.00001).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars)
+        self.train_recon = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(decoder_loss, var_list=encoder_vars + decoder_vars)
+        #self.train_encoder_sel = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(-self.lbda*self.sel_encoder_loss, var_list=encoder_vars)
+        self.train_pi_sel = tf.train.AdamOptimizer(learning_rate=0.0002).minimize(-self.lbda*self.sel_pi_loss, var_list=policy_vars+encoder_vars)
 
         # TODO configure so we dont eat all the resources.
         self.sess = tf.Session()
@@ -59,13 +59,13 @@ class IndepFeatureLearner(object):
 
     def train_step(self, s, sp):
         [_, recon_loss] = self.sess.run([self.train_recon, self.decoder_loss], feed_dict={self.inp_s: s})
-        [_, encoder_loss] = self.sess.run([self.train_encoder_sel, self.sel_encoder_loss], feed_dict={self.inp_s: s,
-                                                                                                      self.inp_sp: sp})
+        #[_, encoder_loss] = self.sess.run([self.train_encoder_sel, self.sel_encoder_loss], feed_dict={self.inp_s: s,
+        #                                                                                              self.inp_sp: sp})
         [_, pi_loss] = self.sess.run([self.train_pi_sel, self.sel_pi_loss], feed_dict={self.inp_s: s,
                                                                                        self.inp_sp: sp})
         #encoder_loss = 0
         #pi_loss = 0
-        return recon_loss, encoder_loss, pi_loss
+        return recon_loss, pi_loss
 
 
     def get_f(self, s):

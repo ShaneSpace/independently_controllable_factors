@@ -41,8 +41,8 @@ for i in itertools.count():
     if buffer.length() < 1000:
         continue
 
-    recon_loss, encoder_loss, pi_loss = run_training_step(buffer, net, env)
-    print(f'{i}: recon_loss: {recon_loss} encoder_loss: {encoder_loss} pi_loss: {pi_loss}')
+    recon_loss, pi_loss = run_training_step(buffer, net, env)
+    print(f'{i}: recon_loss: {recon_loss} pi_loss: {pi_loss}')
     if i % visualization_freq == 0:
         visualize_policies(f'./vis/policies/{i}_', net, env)
         visualize_correlation(f'./vis/correlation/{i}_', net, env)
